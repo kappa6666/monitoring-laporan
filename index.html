@@ -92,3 +92,206 @@
 
         <!-- Data Display Grid -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            
+            <!-- Hourly Section Card -->
+            <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+                <div class="p-5 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+                    <div class="flex items-center space-x-2">
+                        <i data-lucide="clock" class="w-5 h-5 text-amber-500"></i>
+                        <h2 class="font-bold text-slate-800">Kelengkapan Data Hourly</h2>
+                    </div>
+                    <span class="text-xs font-semibold px-2.5 py-1 bg-amber-100 text-amber-800 rounded-full" id="hourlyBadge">0 Items</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm text-slate-600">
+                        <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                            <tr>
+                                <th class="px-4 py-3 w-28">Jam</th>
+                                <th class="px-4 py-3">Nama Perusahaan</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100" id="hourlyTable">
+                            <!-- Populated via Javascript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Daily Section Card -->
+            <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+                <div class="p-5 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+                    <div class="flex items-center space-x-2">
+                        <i data-lucide="calendar" class="w-5 h-5 text-indigo-500"></i>
+                        <h2 class="font-bold text-slate-800">Kelengkapan Data Daily</h2>
+                    </div>
+                    <span class="text-xs font-semibold px-2.5 py-1 bg-indigo-100 text-indigo-800 rounded-full" id="dailyBadge">0 Items</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm text-slate-600">
+                        <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                            <tr>
+                                <th class="px-4 py-3">Perusahaan & Tanggal</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100" id="dailyTable">
+                            <!-- Populated via Javascript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Toast Notification Copy -->
+    <div id="copyToast" class="fixed bottom-5 right-5 hidden bg-slate-900 text-white px-4 py-3 rounded-xl shadow-xl flex items-center space-x-2 z-50 text-sm">
+        <i data-lucide="check-circle-2" class="w-5 h-5 text-emerald-400"></i>
+        <span>Teks Format WA Berhasil Disalin!</span>
+    </div>
+
+    <script>
+        let globalHourly = [];
+        let globalDaily = [];
+
+        async function fetchLiveData() {
+            const icon = document.getElementById('refreshIcon');
+            icon.classList.add('animate-spin');
+
+            try {
+                // Memakai timestamp acak agar tidak terkena cache browser
+                const response = await fetch('data.txt?t=' + new Date().getTime());
+                if (!response.ok) throw new Error("Gagal memuat data.txt");
+                const text = await response.text();
+                parseDataText(text);
+                
+                const now = new Date();
+                document.getElementById('lastUpdated').textContent = `Terakhir Diperbarui: ${now.toLocaleTimeString()}`;
+            } catch (error) {
+                console.error("Gagal memuat data:", error);
+            } finally {
+                icon.classList.remove('animate-spin');
+            }
+        }
+
+        // Parser baru yang dirancang khusus untuk format "HH:MM [Nama]" dan "=== HOURLY/DAILY ==="
+        function parseDataText(rawText) {
+            const lines = rawText.split('\n');
+            let currentSection = '';
+            let hourly = [];
+            let daily = [];
+
+            lines.forEach(line => {
+                let trimmed = line.trim();
+                if (!trimmed) return;
+
+                // Deteksi header bagian
+                if (trimmed.includes('=== HOURLY ===')) {
+                    currentSection = 'HOURLY';
+                    return;
+                }
+                if (trimmed.includes('=== DAILY ===')) {
+                    currentSection = 'DAILY';
+                    return;
+                }
+
+                if (currentSection === 'HOURLY') {
+                    // Cek apakah diawali format jam (contoh: "23:00")
+                    let timeMatch = trimmed.match(/^(\d{2}:\d{2})\s+(.*)/);
+                    if (timeMatch) {
+                        hourly.push({ time: timeMatch[1], name: timeMatch[2] });
+                    } else {
+                        // Jika tidak ada format jam, masukkan apa adanya
+                        let parts = trimmed.split(/\s{2,}|\t/);
+                        if (parts.length >= 2) {
+                            hourly.push({ time: parts[0].trim(), name: parts[1].trim() });
+                        } else {
+                            hourly.push({ time: "--:--", name: trimmed });
+                        }
+                    }
+                } else if (currentSection === 'DAILY') {
+                    if (trimmed.length > 0) {
+                        daily.push(trimmed);
+                    }
+                }
+            });
+
+            globalHourly = hourly;
+            globalDaily = daily;
+            renderTables(globalHourly, globalDaily);
+        }
+
+        function renderTables(hourlyData, dailyData) {
+            const hourlyTbody = document.getElementById('hourlyTable');
+            const dailyTbody = document.getElementById('dailyTable');
+            
+            hourlyTbody.innerHTML = '';
+            dailyTbody.innerHTML = '';
+
+            hourlyData.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50 transition';
+                tr.innerHTML = `
+                    <td class="px-4 py-3 font-medium">
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+                            ${item.time}
+                        </span>
+                    </td>
+                    <td class="px-4 py-3 font-medium text-slate-700">${item.name}</td>
+                `;
+                hourlyTbody.appendChild(tr);
+            });
+
+            dailyData.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50 transition';
+                tr.innerHTML = `
+                    <td class="px-4 py-3 font-medium text-slate-700">${item}</td>
+                `;
+                dailyTbody.appendChild(tr);
+            });
+
+            document.getElementById('hourlyCount').textContent = hourlyData.length;
+            document.getElementById('dailyCount').textContent = dailyData.length;
+            document.getElementById('totalCount').textContent = hourlyData.length + dailyData.length;
+            document.getElementById('hourlyBadge').textContent = `${hourlyData.length} Items`;
+            document.getElementById('dailyBadge').textContent = `${dailyData.length} Items`;
+        }
+
+        function filterData() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            const filteredHourly = globalHourly.filter(item => 
+                item.name.toLowerCase().includes(query) || item.time.toLowerCase().includes(query)
+            );
+            const filteredDaily = globalDaily.filter(item => 
+                item.toLowerCase().includes(query)
+            );
+            renderTables(filteredHourly, filteredDaily);
+        }
+
+        function copyForWA() {
+            let textWA = "=== HOURLY ===\n";
+            globalHourly.forEach(item => {
+                textWA += `${item.time}\t${item.name}\n`;
+            });
+
+            textWA += "\n=== DAILY ===\n";
+            globalDaily.forEach(item => {
+                textWA += `${item}\n`;
+            });
+
+            navigator.clipboard.writeText(textWA).then(() => {
+                const toast = document.getElementById('copyToast');
+                toast.classList.remove('hidden');
+                setTimeout(() => {
+                    toast.classList.add('hidden');
+                }, 2500);
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            fetchLiveData();
+        });
+    </script>
+</body>
+</html>
