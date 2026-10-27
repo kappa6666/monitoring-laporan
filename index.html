@@ -30,7 +30,7 @@
             <div class="flex items-center space-x-3 w-full sm:w-auto justify-end">
                 <button id="updateBtn" onclick="triggerUpdate()" class="flex-1 sm:flex-initial inline-flex items-center justify-center px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white text-sm font-semibold rounded-xl transition duration-150 shadow-sm gap-2">
                     <i data-lucide="refresh-cw" class="w-4 h-4" id="updateIcon"></i>
-                    <span>Update Data</span>
+                    <span>Muat Ulang Data</span>
                 </button>
                 
                 <button onclick="copyForWA()" class="flex-1 sm:flex-initial inline-flex items-center justify-center px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white text-sm font-semibold rounded-xl transition duration-150 shadow-sm gap-2">
@@ -47,12 +47,12 @@
             <div class="flex items-center space-x-3 text-xs sm:text-sm text-slate-600">
                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
                     <span class="w-2 h-2 mr-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
-                    Sistem Siap
+                    Sistem Terhubung
                 </span>
-                <span id="lastUpdated" class="text-slate-500">Terakhir Diperbarui: --:--:--</span>
+                <span id="lastUpdated" class="text-slate-500">Terakhir Diperbarui: Memuat data...</span>
             </div>
             <div id="statusToast" class="hidden text-xs font-medium px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200">
-                Permintaan update dikirim ke server!
+                Memperbarui data dari server...
             </div>
         </div>
 
@@ -61,7 +61,7 @@
             <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
                 <div>
                     <p class="text-xs font-medium text-slate-500">Total Tidak Lengkap</p>
-                    <p class="text-2xl font-bold text-slate-900 mt-1" id="totalCount">37</p>
+                    <p class="text-2xl font-bold text-slate-900 mt-1" id="totalCount">0</p>
                 </div>
                 <div class="p-3 bg-rose-50 rounded-xl text-rose-600">
                     <i data-lucide="alert-triangle" class="w-6 h-6"></i>
@@ -70,7 +70,7 @@
             <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
                 <div>
                     <p class="text-xs font-medium text-slate-500">Hourly Belum Complete</p>
-                    <p class="text-2xl font-bold text-amber-600 mt-1" id="hourlyCount">18</p>
+                    <p class="text-2xl font-bold text-amber-600 mt-1" id="hourlyCount">0</p>
                 </div>
                 <div class="p-3 bg-amber-50 rounded-xl text-amber-600">
                     <i data-lucide="clock" class="w-6 h-6"></i>
@@ -79,7 +79,7 @@
             <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
                 <div>
                     <p class="text-xs font-medium text-slate-500">Daily Belum Complete</p>
-                    <p class="text-2xl font-bold text-indigo-600 mt-1" id="dailyCount">19</p>
+                    <p class="text-2xl font-bold text-indigo-600 mt-1" id="dailyCount">0</p>
                 </div>
                 <div class="p-3 bg-indigo-50 rounded-xl text-indigo-600">
                     <i data-lucide="calendar" class="w-6 h-6"></i>
@@ -103,7 +103,7 @@
                         <i data-lucide="clock" class="w-5 h-5 text-amber-500"></i>
                         <h2 class="font-bold text-slate-800">Kelengkapan Data Hourly</h2>
                     </div>
-                    <span class="text-xs font-semibold px-2.5 py-1 bg-amber-100 text-amber-800 rounded-full" id="hourlyBadge">18 Items</span>
+                    <span class="text-xs font-semibold px-2.5 py-1 bg-amber-100 text-amber-800 rounded-full" id="hourlyBadge">0 Items</span>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="w-full text-left text-sm text-slate-600">
@@ -127,7 +127,7 @@
                         <i data-lucide="calendar" class="w-5 h-5 text-indigo-500"></i>
                         <h2 class="font-bold text-slate-800">Kelengkapan Data Daily</h2>
                     </div>
-                    <span class="text-xs font-semibold px-2.5 py-1 bg-indigo-100 text-indigo-800 rounded-full" id="dailyBadge">19 Items</span>
+                    <span class="text-xs font-semibold px-2.5 py-1 bg-indigo-100 text-indigo-800 rounded-full" id="dailyBadge">0 Items</span>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="w-full text-left text-sm text-slate-600">
@@ -153,49 +153,61 @@
     </div>
 
     <script>
-        // Data Default dari TXT
-        let rawHourly = [
-            { time: "13:00", name: "MIKATASA AGUNG PT" },
-            { time: "17:00", name: "KUDA RAYA KARYANUSA (PLANT BOBO" },
-            { time: "17:00", name: "SHCP INDONESIA PT" },
-            { time: "17:00", name: "WILMAR NABATI INDONESIA PT" },
-            { time: "19:00", name: "GAGAS ENERGI INDONESIA PT - SPB" },
-            { time: "19:00", name: "LOKA REFRACTORIES WIRA JATIM PT" },
-            { time: "21:00", name: "GAGAS ENERGI INDONESIA PT - JAV" },
-            { time: "21:00", name: "SIKA INDONESIA PT" },
-            { time: "21:00", name: "X Ngagel Jaya Utara" },
-            { time: "22:00", name: "NYLEX INDONESIA PT" },
-            { time: "23:00", name: "CARGILL INDONESIA PT" },
-            { time: "23:00", name: "CITRA TERANG ABADI PT" },
-            { time: "23:00", name: "GOOD YEAR CV" },
-            { time: "23:00", name: "HARDCORINDO SEMESTA JAYA PT" },
-            { time: "23:00", name: "LANGGENG MAKMUR ALUMINIUM PT" },
-            { time: "23:00", name: "MEGA MULTI PEGAS PT" },
-            { time: "23:00", name: "PETROSIDA GRESIK PT" },
-            { time: "23:00", name: "X Kampung Lontong" }
-        ];
+        let globalHourly = [];
+        let globalDaily = [];
 
-        let rawDaily = [
-            "CARGILL INDONESIA PT Daily 26/10/26",
-            "CITRA TERANG ABADI PT Daily 26/10/26",
-            "GAGAS ENERGI INDONESIA PT - JAV 26/10/26",
-            "GAGAS ENERGI INDONESIA PT - SPB 26/10/26",
-            "GARUDAFOOD PUTRA PUTRI JAYA TBK 26/10/26",
-            "GOOD YEAR CV Daily 26/10/26",
-            "KARUNIA ALAM SEGAR II PT Daily 26/10/26",
-            "KUDA RAYA KARYANUSA (PLANT BOBO 26/10/26",
-            "LANGGENG MAKMUR ALUMINIUM PT Da 26/10/26",
-            "LOKA REFRACTORIES WIRA JATIM PT 26/10/26",
-            "MIKATASA AGUNG PT Daily 26/10/26",
-            "NYLEX INDONESIA PT Daily 26/10/26",
-            "PETROSIDA GRESIK PT Daily 26/10/26",
-            "RAJAWALI PENTA NUSANTARA PT Dai 26/10/26",
-            "SHCP INDONESIA PT Daily 26/10/26",
-            "SIKA INDONESIA PT Daily 26/10/26",
-            "WILMAR NABATI INDONESIA PT Dail 26/10/26",
-            "X Kampung Lontong 26/10/26",
-            "X Ngagel Jaya Utara 26/10/26"
-        ];
+        // Fungsi untuk mengambil data.txt asli secara live dari repository Anda
+        async function fetchLiveData() {
+            try {
+                const response = await fetch('data.txt?t=' + new Date().getTime());
+                if (!response.ok) throw new Error("Gagal memuat data.txt");
+                const text = await response.text();
+                parseDataText(text);
+                
+                const now = new Date();
+                document.getElementById('lastUpdated').textContent = `Terakhir Diperbarui: ${now.toLocaleTimeString()}`;
+            } catch (error) {
+                console.error("Menggunakan fallback data karena:", error);
+            }
+        }
+
+        // Memecah file text mentah menjadi format tabel Hourly & Daily
+        function parseDataText(rawText) {
+            const lines = rawText.split('\n');
+            let isDailySection = false;
+            let hourly = [];
+            let daily = [];
+
+            lines.forEach(line => {
+                let trimmed = line.trim();
+                if (!trimmed) return;
+
+                if (trimmed.toLowerCase().includes('daily')) {
+                    isDailySection = true;
+                }
+
+                if (isDailySection) {
+                    if (!trimmed.toLowerCase().includes('daily') && trimmed.length > 3) {
+                        daily.push(trimmed);
+                    }
+                } else {
+                    // Format hourly biasanya "HH:MM  Nama Perusahaan"
+                    let parts = trimmed.split('\t');
+                    if (parts.length < 2) {
+                        parts = trimmed.split('  ');
+                    }
+                    if (parts.length >= 2) {
+                        hourly.push({ time: parts[0].trim(), name: parts[1].trim() });
+                    } else if (trimmed.length > 5) {
+                        hourly.push({ time: "--:--", name: trimmed });
+                    }
+                }
+            });
+
+            globalHourly = hourly;
+            globalDaily = daily;
+            renderTables(globalHourly, globalDaily);
+        }
 
         function renderTables(hourlyData, dailyData) {
             const hourlyTbody = document.getElementById('hourlyTable');
@@ -236,46 +248,32 @@
 
         function filterData() {
             const query = document.getElementById('searchInput').value.toLowerCase();
-            const filteredHourly = rawHourly.filter(item => 
+            const filteredHourly = globalHourly.filter(item => 
                 item.name.toLowerCase().includes(query) || item.time.toLowerCase().includes(query)
             );
-            const filteredDaily = rawDaily.filter(item => 
+            const filteredDaily = globalDaily.filter(item => 
                 item.toLowerCase().includes(query)
             );
             renderTables(filteredHourly, filteredDaily);
         }
 
         function triggerUpdate() {
-            const btn = document.getElementById('updateBtn');
             const icon = document.getElementById('updateIcon');
-            const toast = document.getElementById('statusToast');
-            
-            // Spinning Animation
             icon.classList.add('animate-spin');
-            btn.disabled = true;
-            btn.classList.add('opacity-75');
-
-            toast.classList.remove('hidden');
-
             setTimeout(() => {
+                fetchLiveData();
                 icon.classList.remove('animate-spin');
-                btn.disabled = false;
-                btn.classList.remove('opacity-75');
-                toast.classList.add('hidden');
-                
-                const now = new Date();
-                document.getElementById('lastUpdated').textContent = `Terakhir Diperbarui: ${now.toLocaleTimeString()}`;
-            }, 2000);
+            }, 1000);
         }
 
         function copyForWA() {
             let textWA = "data tidak lengkap\n";
-            rawHourly.forEach(item => {
+            globalHourly.forEach(item => {
                 textWA += `${item.time}\t${item.name}\n`;
             });
 
             textWA += "\n\ndaily\n";
-            rawDaily.forEach(item => {
+            globalDaily.forEach(item => {
                 textWA += `${item}\n`;
             });
 
@@ -288,12 +286,9 @@
             });
         }
 
-        // Initialize UI
         document.addEventListener('DOMContentLoaded', () => {
             lucide.createIcons();
-            renderTables(rawHourly, rawDaily);
-            const now = new Date();
-            document.getElementById('lastUpdated').textContent = `Terakhir Diperbarui: ${now.toLocaleTimeString()}`;
+            fetchLiveData();
         });
     </script>
 </body>
