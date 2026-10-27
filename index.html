@@ -149,18 +149,18 @@
         <span>Teks Format WA Berhasil Disalin!</span>
     </div>
 
+    <!-- SEMUA FUNGSI JAVASCRIPT DIJAMIN LENGKAP DI SINI -->
     <script>
         let globalHourly = [];
         let globalDaily = [];
 
         async function fetchLiveData() {
             const icon = document.getElementById('refreshIcon');
-            icon.classList.add('animate-spin');
+            if (icon) icon.classList.add('animate-spin');
 
             try {
-                // Memakai timestamp acak agar tidak terkena cache browser
                 const response = await fetch('data.txt?t=' + new Date().getTime());
-                if (!response.ok) throw new Error("Gagal memuat data.txt");
+                if (!response.ok) throw new Error("Gagal memuat data.txt (File tidak ditemukan)");
                 const text = await response.text();
                 parseDataText(text);
                 
@@ -168,12 +168,12 @@
                 document.getElementById('lastUpdated').textContent = `Terakhir Diperbarui: ${now.toLocaleTimeString()}`;
             } catch (error) {
                 console.error("Gagal memuat data:", error);
+                alert("Gagal memuat data.txt. Pastikan file data.txt sudah ada di repository GitHub.");
             } finally {
-                icon.classList.remove('animate-spin');
+                if (icon) icon.classList.remove('animate-spin');
             }
         }
 
-        // Parser baru yang dirancang khusus untuk format "HH:MM [Nama]" dan "=== HOURLY/DAILY ==="
         function parseDataText(rawText) {
             const lines = rawText.split('\n');
             let currentSection = '';
@@ -184,7 +184,6 @@
                 let trimmed = line.trim();
                 if (!trimmed) return;
 
-                // Deteksi header bagian
                 if (trimmed.includes('=== HOURLY ===')) {
                     currentSection = 'HOURLY';
                     return;
@@ -195,16 +194,14 @@
                 }
 
                 if (currentSection === 'HOURLY') {
-                    // Cek apakah diawali format jam (contoh: "23:00")
                     let timeMatch = trimmed.match(/^(\d{2}:\d{2})\s+(.*)/);
                     if (timeMatch) {
                         hourly.push({ time: timeMatch[1], name: timeMatch[2] });
                     } else {
-                        // Jika tidak ada format jam, masukkan apa adanya
                         let parts = trimmed.split(/\s{2,}|\t/);
                         if (parts.length >= 2) {
                             hourly.push({ time: parts[0].trim(), name: parts[1].trim() });
-                        } else {
+                        } else if (trimmed.length > 0) {
                             hourly.push({ time: "--:--", name: trimmed });
                         }
                     }
@@ -224,6 +221,8 @@
             const hourlyTbody = document.getElementById('hourlyTable');
             const dailyTbody = document.getElementById('dailyTable');
             
+            if (!hourlyTbody || !dailyTbody) return;
+
             hourlyTbody.innerHTML = '';
             dailyTbody.innerHTML = '';
 
