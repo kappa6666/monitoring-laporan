@@ -28,8 +28,8 @@
             </div>
             
             <div class="flex items-center space-x-3 w-full sm:w-auto justify-end">
-                <button id="updateBtn" onclick="triggerUpdate()" class="flex-1 sm:flex-initial inline-flex items-center justify-center px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white text-sm font-semibold rounded-xl transition duration-150 shadow-sm gap-2">
-                    <i data-lucide="refresh-cw" class="w-4 h-4" id="updateIcon"></i>
+                <button onclick="fetchLiveData()" class="flex-1 sm:flex-initial inline-flex items-center justify-center px-4 py-2.5 bg-slate-800 hover:bg-slate-700 active:bg-slate-900 text-white text-sm font-semibold rounded-xl transition duration-150 shadow-sm gap-2 border border-slate-700">
+                    <i data-lucide="refresh-cw" class="w-4 h-4" id="refreshIcon"></i>
                     <span>Muat Ulang Data</span>
                 </button>
                 
@@ -47,12 +47,9 @@
             <div class="flex items-center space-x-3 text-xs sm:text-sm text-slate-600">
                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
                     <span class="w-2 h-2 mr-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
-                    Sistem Terhubung
+                    Dashboard Aktif
                 </span>
                 <span id="lastUpdated" class="text-slate-500">Terakhir Diperbarui: Memuat data...</span>
-            </div>
-            <div id="statusToast" class="hidden text-xs font-medium px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200">
-                Memperbarui data dari server...
             </div>
         </div>
 
@@ -156,8 +153,10 @@
         let globalHourly = [];
         let globalDaily = [];
 
-        // Fungsi untuk mengambil data.txt asli secara live dari repository Anda
         async function fetchLiveData() {
+            const icon = document.getElementById('refreshIcon');
+            icon.classList.add('animate-spin');
+
             try {
                 const response = await fetch('data.txt?t=' + new Date().getTime());
                 if (!response.ok) throw new Error("Gagal memuat data.txt");
@@ -167,11 +166,12 @@
                 const now = new Date();
                 document.getElementById('lastUpdated').textContent = `Terakhir Diperbarui: ${now.toLocaleTimeString()}`;
             } catch (error) {
-                console.error("Menggunakan fallback data karena:", error);
+                console.error("Gagal memuat data:", error);
+            } finally {
+                icon.classList.remove('animate-spin');
             }
         }
 
-        // Memecah file text mentah menjadi format tabel Hourly & Daily
         function parseDataText(rawText) {
             const lines = rawText.split('\n');
             let isDailySection = false;
@@ -184,21 +184,21 @@
 
                 if (trimmed.toLowerCase().includes('daily')) {
                     isDailySection = true;
+                    return;
                 }
 
                 if (isDailySection) {
-                    if (!trimmed.toLowerCase().includes('daily') && trimmed.length > 3) {
+                    if (trimmed.length > 0) {
                         daily.push(trimmed);
                     }
                 } else {
-                    // Format hourly biasanya "HH:MM  Nama Perusahaan"
                     let parts = trimmed.split('\t');
                     if (parts.length < 2) {
                         parts = trimmed.split('  ');
                     }
                     if (parts.length >= 2) {
                         hourly.push({ time: parts[0].trim(), name: parts[1].trim() });
-                    } else if (trimmed.length > 5) {
+                    } else if (trimmed.length > 0) {
                         hourly.push({ time: "--:--", name: trimmed });
                     }
                 }
@@ -255,15 +255,6 @@
                 item.toLowerCase().includes(query)
             );
             renderTables(filteredHourly, filteredDaily);
-        }
-
-        function triggerUpdate() {
-            const icon = document.getElementById('updateIcon');
-            icon.classList.add('animate-spin');
-            setTimeout(() => {
-                fetchLiveData();
-                icon.classList.remove('animate-spin');
-            }, 1000);
         }
 
         function copyForWA() {
