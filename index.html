@@ -159,24 +159,28 @@
     <script>
         let globalHourly = [];
         let globalDaily = [];
-        let rawContentText = '';
 
         async function fetchLiveData() {
             const icon = document.getElementById('refreshIcon');
             if (icon) icon.classList.add('animate-spin');
 
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
+
             try {
-                const response = await fetch('data.txt?t=' + new Date().getTime());
+                const response = await fetch('data.txt?t=' + new Date().getTime(), { signal: controller.signal });
+                clearTimeout(timeoutId);
+
                 if (!response.ok) throw new Error("Gagal memuat data.txt (File tidak ditemukan)");
                 const text = await response.text();
-                rawContentText = text;
                 parseDataText(text);
                 
                 const now = new Date();
                 document.getElementById('lastUpdated').textContent = `Terakhir Diperbarui: ${now.toLocaleTimeString('id-ID')}`;
             } catch (error) {
+                clearTimeout(timeoutId);
                 console.error("Gagal memuat data:", error);
-                alert("Gagal memuat data.txt. Pastikan file data.txt sudah ada di lokasi server/repository.");
+                document.getElementById('lastUpdated').textContent = "Gagal memuat file data.txt";
             } finally {
                 if (icon) icon.classList.remove('animate-spin');
             }
@@ -202,43 +206,67 @@
                 }
 
                 if (currentSection === 'HOURLY') {
-                    // Regex mencocokkan Format: "12:00 01/11/26 [TAB/Spasi] NAMA PERUSAHAAN"
-                    let match = trimmed.match(/^(\d{2}:\d{2})\s+(\d{2}\/\d{2}\/\d{2,4})[\t\s]+(.*)$/);
-                    if (match) {
-                        hourly.push({
-                            time: match[1],
-                            date: match[2],
-                            name: match[3].trim(),
-                            rawLine: trimmed
-                        });
+                    // Parser HOURLY Fleksibel: Aman untuk Tab (\t) maupun Spasi Banyak
+                    let parts = trimmed.split(/\t+|\s{2,}/);
+                    let time = '--:--';
+                    let date = '-';
+                    let name = trimmed;
+
+                    if (parts.length >= 2) {
+                        // Kasus 1: Bagian pertama berisi "12:00 01/11/26"
+                        let dt = parts[0].trim().split(/\s+/);
+                        time = dt[0] || '--:--';
+                        date = dt[1] || '-';
+                        name = parts.slice(1).join(' ').trim();
                     } else {
-                        // Fallback parsing opsional jika format sedikit bervariasi
-                        let parts = trimmed.split(/\t+|\s{2,}/);
-                        if (parts.length >= 2) {
-                            let dtParts = parts[0].trim().split(/\s+/);
-                            hourly.push({
-                                time: dtParts[0] || '--:--',
-                                date: dtParts[1] || '-',
-                                name: parts.slice(1).join(' ').trim(),
-                                rawLine: trimmed
-                            });
-                        } else {
-                            hourly.push({ time: '--:--', date: '-', name: trimmed, rawLine: trimmed });
+                        // Kasus 2: Hanya terpisah oleh spasi tunggal
+                        let tokens = trimmed.split(/\s+/);
+                        if (tokens.length >= 3 && tokens[0].includes(':')) {
+                            time = tokens[0];
+                            date = tokens[1];
+                            name = tokens.slice(2).join(' ');
+                        } else if (tokens.length >= 2 && tokens[0].includes(':')) {
+                            time = tokens[0];
+                            date = '-';
+                            name = tokens.slice(1).join(' ');
                         }
                     }
+
+                    hourly.push({
+                        time: time || '--:--',
+                        date: date || '-',
+                        name: name || trimmed,
+                        rawLine: trimmed
+                    });
+
                 } else if (currentSection === 'DAILY') {
-                    // Regex mencocokkan Format: "NAMA PERUSAHAAN [Daily/D] 31/10/26"
-                    let match = trimmed.match(/^(.*?)\s+(Daily|D)\s+(\d{2}\/\d{2}\/\d{2,4})$/i);
-                    if (match) {
-                        daily.push({
-                            name: match[1].trim(),
-                            type: match[2].toUpperCase() === 'D' ? 'Daily' : match[2],
-                            date: match[3],
-                            rawLine: trimmed
-                        });
-                    } else {
-                        daily.push({ name: trimmed, type: 'Daily', date: '-', rawLine: trimmed });
+                    // Parser DAILY Fleksibel
+                    let tokens = trimmed.split(/\s+/);
+                    let name = trimmed;
+                    let type = 'Daily';
+                    let date = '-';
+
+                    if (tokens.length >= 3) {
+                        let lastToken = tokens[tokens.length - 1];
+                        let secondLastToken = tokens[tokens.length - 2];
+
+                        if (/[\d\/\-]/.test(lastToken)) {
+                            date = lastToken;
+                            if (['daily', 'd'].includes(secondLastToken.toLowerCase())) {
+                                type = secondLastToken.toUpperCase() === 'D' ? 'Daily' : secondLastToken;
+                                name = tokens.slice(0, tokens.length - 2).join(' ');
+                            } else {
+                                name = tokens.slice(0, tokens.length - 1).join(' ');
+                            }
+                        }
                     }
+
+                    daily.push({
+                        name: name || trimmed,
+                        type: type || 'Daily',
+                        date: date || '-',
+                        rawLine: trimmed
+                    });
                 }
             });
 
@@ -254,7 +282,7 @@
             if (!hourlyTbody || !dailyTbody) return;
 
             // Render Hourly Table
-            if (hourlyData.length === 0) {
+            if (!hourlyData || hourlyData.length === 0) {
                 hourlyTbody.innerHTML = `
                     <tr>
                         <td colspan="3" class="px-4 py-8 text-center text-slate-400">
@@ -267,17 +295,17 @@
                     <tr class="hover:bg-slate-50/80 transition">
                         <td class="px-4 py-3 font-medium">
                             <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-                                ${item.time}
+                                ${item.time || '--:--'}
                             </span>
                         </td>
-                        <td class="px-4 py-3 text-xs font-mono text-slate-500">${item.date}</td>
-                        <td class="px-4 py-3 font-semibold text-slate-800">${item.name}</td>
+                        <td class="px-4 py-3 text-xs font-mono text-slate-500">${item.date || '-'}</td>
+                        <td class="px-4 py-3 font-semibold text-slate-800">${item.name || ''}</td>
                     </tr>
                 `).join('');
             }
 
             // Render Daily Table
-            if (dailyData.length === 0) {
+            if (!dailyData || dailyData.length === 0) {
                 dailyTbody.innerHTML = `
                     <tr>
                         <td colspan="3" class="px-4 py-8 text-center text-slate-400">
@@ -288,40 +316,40 @@
             } else {
                 dailyTbody.innerHTML = dailyData.map(item => `
                     <tr class="hover:bg-slate-50/80 transition">
-                        <td class="px-4 py-3 font-semibold text-slate-800">${item.name}</td>
+                        <td class="px-4 py-3 font-semibold text-slate-800">${item.name || ''}</td>
                         <td class="px-4 py-3 text-center">
                             <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
-                                ${item.type}
+                                ${item.type || 'Daily'}
                             </span>
                         </td>
-                        <td class="px-4 py-3 text-right text-xs font-mono text-slate-500">${item.date}</td>
+                        <td class="px-4 py-3 text-right text-xs font-mono text-slate-500">${item.date || '-'}</td>
                     </tr>
                 `).join('');
             }
 
-            // Update Counter Badges & Cards
+            // Update Counter Badges
             document.getElementById('hourlyCount').textContent = hourlyData.length;
             document.getElementById('dailyCount').textContent = dailyData.length;
             document.getElementById('totalCount').textContent = hourlyData.length + dailyData.length;
             document.getElementById('hourlyBadge').textContent = `${hourlyData.length} Items`;
             document.getElementById('dailyBadge').textContent = `${dailyData.length} Items`;
 
-            lucide.createIcons();
+            if (window.lucide) lucide.createIcons();
         }
 
         function filterData() {
-            const query = document.getElementById('searchInput').value.toLowerCase().trim();
+            const query = (document.getElementById('searchInput').value || '').toLowerCase().trim();
             
             const filteredHourly = globalHourly.filter(item => 
-                item.name.toLowerCase().includes(query) || 
-                item.time.toLowerCase().includes(query) ||
-                item.date.toLowerCase().includes(query)
+                (item.name || '').toLowerCase().includes(query) || 
+                (item.time || '').toLowerCase().includes(query) ||
+                (item.date || '').toLowerCase().includes(query)
             );
             
             const filteredDaily = globalDaily.filter(item => 
-                item.name.toLowerCase().includes(query) ||
-                item.type.toLowerCase().includes(query) ||
-                item.date.toLowerCase().includes(query)
+                (item.name || '').toLowerCase().includes(query) ||
+                (item.type || '').toLowerCase().includes(query) ||
+                (item.date || '').toLowerCase().includes(query)
             );
 
             renderTables(filteredHourly, filteredDaily);
@@ -330,7 +358,7 @@
         function copyForWA() {
             let textWA = "=== HOURLY ===\n";
             globalHourly.forEach(item => {
-                textWA += `${item.time} ${item.date}\t${item.name}\n`;
+                textWA += `${item.rawLine}\n`;
             });
 
             textWA += "\n=== DAILY ===\n";
@@ -340,15 +368,17 @@
 
             navigator.clipboard.writeText(textWA.trim()).then(() => {
                 const toast = document.getElementById('copyToast');
-                toast.classList.remove('hidden');
-                setTimeout(() => {
-                    toast.classList.add('hidden');
-                }, 2500);
+                if (toast) {
+                    toast.classList.remove('hidden');
+                    setTimeout(() => {
+                        toast.classList.add('hidden');
+                    }, 2500);
+                }
             });
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            lucide.createIcons();
+            if (window.lucide) lucide.createIcons();
             fetchLiveData();
         });
     </script>
