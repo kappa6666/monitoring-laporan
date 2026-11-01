@@ -161,7 +161,6 @@
         let globalDaily = [];
 
         async function fetchLiveData() {
-            // Pasang animasi spin pada elemen yang aktif di DOM
             const icon = document.getElementById('refreshIcon');
             if (icon) icon.classList.add('animate-spin');
 
@@ -178,10 +177,23 @@
                 console.error("Gagal memuat data:", error);
                 document.getElementById('lastUpdated').textContent = "Gagal memuat data.txt (Gunakan web server/Live Server)";
             } finally {
-                // PENTING: Ambil ulang referensi ikon dari DOM secara segar agar tidak terjebak referensi lama
                 const currentIcon = document.getElementById('refreshIcon');
                 if (currentIcon) currentIcon.classList.remove('animate-spin');
             }
+        }
+
+        // Fungsi pembantu untuk mengonversi string tanggal & waktu ke objek Date
+        function parseDateTime(dateStr, timeStr) {
+            if (dateStr === '-' || timeStr === '--:--') return new Date(0); // Tanggal default jika format tidak valid
+
+            const [day, month, year] = dateStr.split('/');
+            // Pastikan tahun 4 digit. Jika 2 digit, tambahkan '20' (asumsi tahun 2000-an).
+            const fullYear = year.length === 2 ? '20' + year : year;
+
+            const [hours, minutes] = timeStr.split(':');
+            
+            // Perhatikan urutan Date: Year, Month Index (0-11), Day, Hours, Minutes
+            return new Date(fullYear, parseInt(month) - 1, day, hours, minutes);
         }
 
         function parseDataText(rawText) {
@@ -231,7 +243,8 @@
                         time: time,
                         date: date,
                         name: name,
-                        rawLine: trimmed
+                        rawLine: trimmed,
+                        timestamp: parseDateTime(date, time) // Simpan objek Date untuk pengurutan
                     });
 
                 } else if (currentSection === 'DAILY') {
@@ -263,6 +276,9 @@
                     });
                 }
             });
+
+            // Urutkan data Hourly dari terlama ke terbaru (Ascending)
+            hourly.sort((a, b) => a.timestamp - b.timestamp);
 
             globalHourly = hourly;
             globalDaily = daily;
