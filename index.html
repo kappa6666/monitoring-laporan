@@ -45,7 +45,7 @@
         <!-- Status Indicator Bar -->
         <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-col sm:flex-row justify-between items-center gap-3">
             <div class="flex items-center space-x-3 text-xs sm:text-sm text-slate-600">
-                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800" id="statusBadge">
                     <span class="w-2 h-2 mr-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
                     Dashboard Aktif
                 </span>
@@ -161,28 +161,26 @@
         let globalDaily = [];
 
         async function fetchLiveData() {
+            // Pasang animasi spin pada elemen yang aktif di DOM
             const icon = document.getElementById('refreshIcon');
             if (icon) icon.classList.add('animate-spin');
 
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 5000);
-
             try {
-                const response = await fetch('data.txt?t=' + new Date().getTime(), { signal: controller.signal });
-                clearTimeout(timeoutId);
-
-                if (!response.ok) throw new Error("Gagal memuat data.txt (File tidak ditemukan)");
+                const response = await fetch('data.txt?t=' + new Date().getTime());
+                if (!response.ok) throw new Error("File data.txt tidak ditemukan");
+                
                 const text = await response.text();
                 parseDataText(text);
                 
                 const now = new Date();
                 document.getElementById('lastUpdated').textContent = `Terakhir Diperbarui: ${now.toLocaleTimeString('id-ID')}`;
             } catch (error) {
-                clearTimeout(timeoutId);
                 console.error("Gagal memuat data:", error);
-                document.getElementById('lastUpdated').textContent = "Gagal memuat file data.txt";
+                document.getElementById('lastUpdated').textContent = "Gagal memuat data.txt (Gunakan web server/Live Server)";
             } finally {
-                if (icon) icon.classList.remove('animate-spin');
+                // PENTING: Ambil ulang referensi ikon dari DOM secara segar agar tidak terjebak referensi lama
+                const currentIcon = document.getElementById('refreshIcon');
+                if (currentIcon) currentIcon.classList.remove('animate-spin');
             }
         }
 
@@ -206,20 +204,17 @@
                 }
 
                 if (currentSection === 'HOURLY') {
-                    // Parser HOURLY Fleksibel: Aman untuk Tab (\t) maupun Spasi Banyak
                     let parts = trimmed.split(/\t+|\s{2,}/);
                     let time = '--:--';
                     let date = '-';
                     let name = trimmed;
 
                     if (parts.length >= 2) {
-                        // Kasus 1: Bagian pertama berisi "12:00 01/11/26"
                         let dt = parts[0].trim().split(/\s+/);
                         time = dt[0] || '--:--';
                         date = dt[1] || '-';
                         name = parts.slice(1).join(' ').trim();
                     } else {
-                        // Kasus 2: Hanya terpisah oleh spasi tunggal
                         let tokens = trimmed.split(/\s+/);
                         if (tokens.length >= 3 && tokens[0].includes(':')) {
                             time = tokens[0];
@@ -233,14 +228,13 @@
                     }
 
                     hourly.push({
-                        time: time || '--:--',
-                        date: date || '-',
-                        name: name || trimmed,
+                        time: time,
+                        date: date,
+                        name: name,
                         rawLine: trimmed
                     });
 
                 } else if (currentSection === 'DAILY') {
-                    // Parser DAILY Fleksibel
                     let tokens = trimmed.split(/\s+/);
                     let name = trimmed;
                     let type = 'Daily';
@@ -262,9 +256,9 @@
                     }
 
                     daily.push({
-                        name: name || trimmed,
-                        type: type || 'Daily',
-                        date: date || '-',
+                        name: name,
+                        type: type,
+                        date: date,
                         rawLine: trimmed
                     });
                 }
@@ -286,7 +280,6 @@
                 hourlyTbody.innerHTML = `
                     <tr>
                         <td colspan="3" class="px-4 py-8 text-center text-slate-400">
-                            <i data-lucide="check-circle" class="w-8 h-8 mx-auto mb-2 text-emerald-500/60"></i>
                             <p class="text-sm font-medium">Tidak ada data Hourly yang belum lengkap</p>
                         </td>
                     </tr>`;
@@ -295,11 +288,11 @@
                     <tr class="hover:bg-slate-50/80 transition">
                         <td class="px-4 py-3 font-medium">
                             <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-                                ${item.time || '--:--'}
+                                ${item.time}
                             </span>
                         </td>
-                        <td class="px-4 py-3 text-xs font-mono text-slate-500">${item.date || '-'}</td>
-                        <td class="px-4 py-3 font-semibold text-slate-800">${item.name || ''}</td>
+                        <td class="px-4 py-3 text-xs font-mono text-slate-500">${item.date}</td>
+                        <td class="px-4 py-3 font-semibold text-slate-800">${item.name}</td>
                     </tr>
                 `).join('');
             }
@@ -309,20 +302,19 @@
                 dailyTbody.innerHTML = `
                     <tr>
                         <td colspan="3" class="px-4 py-8 text-center text-slate-400">
-                            <i data-lucide="check-circle" class="w-8 h-8 mx-auto mb-2 text-emerald-500/60"></i>
                             <p class="text-sm font-medium">Tidak ada data Daily yang belum lengkap</p>
                         </td>
                     </tr>`;
             } else {
                 dailyTbody.innerHTML = dailyData.map(item => `
                     <tr class="hover:bg-slate-50/80 transition">
-                        <td class="px-4 py-3 font-semibold text-slate-800">${item.name || ''}</td>
+                        <td class="px-4 py-3 font-semibold text-slate-800">${item.name}</td>
                         <td class="px-4 py-3 text-center">
                             <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
-                                ${item.type || 'Daily'}
+                                ${item.type}
                             </span>
                         </td>
-                        <td class="px-4 py-3 text-right text-xs font-mono text-slate-500">${item.date || '-'}</td>
+                        <td class="px-4 py-3 text-right text-xs font-mono text-slate-500">${item.date}</td>
                     </tr>
                 `).join('');
             }
@@ -333,8 +325,6 @@
             document.getElementById('totalCount').textContent = hourlyData.length + dailyData.length;
             document.getElementById('hourlyBadge').textContent = `${hourlyData.length} Items`;
             document.getElementById('dailyBadge').textContent = `${dailyData.length} Items`;
-
-            if (window.lucide) lucide.createIcons();
         }
 
         function filterData() {
